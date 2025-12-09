@@ -1,66 +1,145 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Sesion, EstadoSesion } from './entities/sesion.entity';
 import { Repository, DataSource } from 'typeorm';
 import { CrearSesionDto } from './dto/create-sesion.dto';
-import { CursosService } from '../cursos/cursos.service';
+import { QuerySesionesDto } from './dto/query-sesiones.dto';
+import { Curso } from '../cursos/entities/curso.entity';
 
 @Injectable()
 export class SesionesService {
   constructor(
     @InjectRepository(Sesion) private repo: Repository<Sesion>,
-    private cursosSvc: CursosService,
+    @InjectRepository(Curso) private cursoRepo: Repository<Curso>,
     private dataSource: DataSource,
   ) {}
 
   async crear(dto: CrearSesionDto) {
-    const curso = await this.cursosSvc.buscarPorId(dto.cursoId);
-    if (!curso) throw new NotFoundException('Curso no encontrado');
-    const s = this.repo.create({
-      titulo: dto.titulo,
-      cursoId: dto.cursoId,
-      inicioAt: new Date(dto.inicioAt),
-      finAt: new Date(dto.finAt),
-      estado: EstadoSesion.PROGRAMADA,
+    if (dto.finAt <= dto.inicioAt) {
+      throw new BadRequestException(
+        'La fecha de fin debe ser posterior a la fecha de inicio',
+      );
+    }
+    const curso = await this.cursoRepo.findOne({ where: { id: dto.cursoId } });
+    if (!curso) {
+      throw new NotFoundException(
+        `El curso con id ${dto.cursoId} no fue encontrado`,
+      );
+    }
+
+    const sesion = this.repo.create(dto);
+    return this.repo.save(sesion);
+  }
+
+  async listar(query: QuerySesionesDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const qb = this.repo.createQueryBuilder('sesion');
+
+    if (query.cursoId) {
+      qb.andWhere('sesion.cursoId = :cursoId', { cursoId: query.cursoId });
+    }
+    if (query.fechaDesde) {
+      qb.andWhere('sesion.inicioAt >= :fechaDesde', {
+        fechaDesde: query.fechaDesde,
+      });
+    }
+    if (query.fechaHasta) {
+      qb.andWhere('sesion.inicioAt <= :fechaHasta', {
+        fechaHasta: query.fechaHasta,
+      });
+    }
+
+    qb.leftJoinAndSelect('sesion.curso', 'curso');
+    qb.orderBy('sesion.inicioAt', 'ASC');
+    qb.skip(offset).take(limit);
+
+    const [sesiones, total] = await qb.getManyAndCount();
+
+    return {
+      data: sesiones,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async buscarPorId(id: number) {
+    const sesion = await this.repo.findOne({
+      where: { id },
+      relations: ['curso'],
     });
-    return this.repo.save(s);
+    if (!sesion) {
+      throw new NotFoundException(`La sesión con id ${id} no fue encontrada`);
+    }
+    return sesion;
   }
-
-  listar(filters?: any) {
-    const qb = this.repo.createQueryBuilder('s');
-    if (filters?.cursoId) qb.andWhere('s.cursoId = :c', { c: filters.cursoId });
-    if (filters?.fechaDesde) qb.andWhere('s.inicioAt >= :fd', { fd: filters.fechaDesde });
-    if (filters?.fechaHasta) qb.andWhere('s.inicioAt <= :fh', { fh: filters.fechaHasta });
-    const page = Number(filters?.page || 1);
-    const limit = Number(filters?.limit || 20);
-    return qb.skip((page - 1) * limit).take(limit).getMany();
-  }
-
-  buscarPorId(id: number) { return this.repo.findOne({ where: { id } }); }
 
   async iniciarSesion(sesionId: number, actorId: number, margenMinutos = 5) {
-    return this.dataSource.transaction(async manager => {
-      const s = await manager.getRepository(Sesion).findOne({ where: { id: sesionId }});
-      if (!s) throw new NotFoundException('Sesión no encontrada');
-      const curso = await this.cursosSvc.buscarPorId(s.cursoId);
-      if (!curso) throw new NotFoundException('Curso no encontrado');
-      if (curso.profesorId !== actorId) throw new ForbiddenException('Solo el profesor puede iniciar');
-      const ahora = new Date();
-      const earliest = new Date(s.inicioAt);
-      earliest.setMinutes(earliest.getMinutes() - margenMinutos);
-      if (ahora < earliest) throw new BadRequestException('Demasiado pronto para iniciar');
-      s.estado = EstadoSesion.EN_VIVO;
-      return manager.getRepository(Sesion).save(s);
-    });
+    const sesion = await this.buscarPorId(sesionId);
+
+    if (sesion.curso.profesorId !== actorId) {
+      throw new ForbiddenException(
+        'Solo el profesor del curso puede iniciar la sesión',
+      );
+    }
+    if (sesion.estado !== EstadoSesion.PROGRAMADA) {
+      throw new BadRequestException(
+        `No se puede iniciar una sesión que no esté en estado 'PROGRAMADA'. Estado actual: ${sesion.estado}`,
+      );
+    }
+
+    const ahora = new Date();
+    const inicioPermitido = new Date(sesion.inicioAt);
+    inicioPermitido.setMinutes(inicioPermitido.getMinutes() - margenMinutos);
+
+    if (ahora < inicioPermitido) {
+      throw new BadRequestException(
+        `La sesión no puede ser iniciada hasta ${margenMinutos} minutos antes de la hora programada.`,
+      );
+    }
+
+    if (ahora > sesion.finAt) {
+      throw new BadRequestException(
+        'No se puede iniciar una sesión que ya ha pasado su hora de finalización.',
+      );
+    }
+
+    sesion.estado = EstadoSesion.EN_VIVO;
+    return this.repo.save(sesion);
   }
 
   async finalizarSesion(sesionId: number, actorId: number) {
-    const s = await this.buscarPorId(sesionId);
-    if (!s) throw new NotFoundException('Sesión no encontrada');
-    const curso = await this.cursosSvc.buscarPorId(s.cursoId);
-    if (!curso) throw new NotFoundException('Curso no encontrado');
-    if (curso.profesorId !== actorId) throw new ForbiddenException('Solo el profesor puede finalizar');
-    s.estado = EstadoSesion.FINALIZADA;
-    return this.repo.save(s);
+    const sesion = await this.buscarPorId(sesionId);
+
+    if (sesion.curso.profesorId !== actorId) {
+      throw new ForbiddenException(
+        'Solo el profesor del curso puede finalizar la sesión',
+      );
+    }
+    if (
+      sesion.estado === EstadoSesion.FINALIZADA ||
+      sesion.estado === EstadoSesion.CANCELADA
+    ) {
+      throw new BadRequestException(
+        `No se puede finalizar una sesión que ya está en estado '${sesion.estado}'`,
+      );
+    }
+    if (sesion.estado !== EstadoSesion.EN_VIVO) {
+      throw new BadRequestException(
+        `Solo se puede finalizar una sesión que está 'EN_VIVO'.`,
+      );
+    }
+
+    sesion.estado = EstadoSesion.FINALIZADA;
+    sesion.finAt = new Date(); // Opcional: ajustar la hora de fin a la real.
+    return this.repo.save(sesion);
   }
 }

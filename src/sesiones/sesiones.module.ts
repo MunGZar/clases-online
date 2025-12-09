@@ -5,9 +5,14 @@ import { SesionesService } from './sesiones.service';
 import { SesionesController } from './sesiones.controller';
 import { CursosModule } from '../cursos/cursos.module';
 import { UsuariosModule } from '../usuarios/usuario.module';
+import { Curso } from '../cursos/entities/curso.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Sesion]), CursosModule, UsuariosModule],
+  imports: [
+    TypeOrmModule.forFeature([Sesion, Curso]),
+    CursosModule,
+    UsuariosModule,
+  ],
   providers: [SesionesService],
   controllers: [SesionesController],
   exports: [SesionesService],
