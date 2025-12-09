@@ -1,44 +1,174 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Inscripcion} from './entities/inscripcion.entity';
+import { Inscripcion } from './entities/inscripcion.entity';
 import { Repository, DataSource } from 'typeorm';
 import { Curso } from '../cursos/entities/curso.entity';
+import { Usuario } from '../usuarios/entities/usuario.entity';
+import { CrearInscripcionDto } from './dto/crear-inscripcion.dto';
+import { UpdateInscripcionDto } from './dto/update-inscripcion.dto';
+import { QueryInscripcionesDto } from './dto/query-inscripciones.dto';
 
 @Injectable()
 export class InscripcionesService {
   constructor(
     @InjectRepository(Inscripcion) private repo: Repository<Inscripcion>,
+    @InjectRepository(Curso) private cursoRepo: Repository<Curso>,
+    @InjectRepository(Usuario) private usuarioRepo: Repository<Usuario>,
     private dataSource: DataSource,
   ) {}
 
-  async matricular(cursoId: number, estudianteId: number) {
-    return this.dataSource.transaction(async manager => {
-      const curso = await manager.getRepository(Curso)
+  async crear(dto: CrearInscripcionDto) {
+    const { cursoId, estudianteId } = dto;
+
+    return this.dataSource.transaction(async (manager) => {
+      const curso = await manager
+        .getRepository(Curso)
         .createQueryBuilder('c')
-        .setLock('pessimistic_write')
+        .setLock('for_no_key_update')
         .where('c.id = :id', { id: cursoId })
         .getOne();
 
-      if (!curso) throw new NotFoundException('Curso no encontrado');
-
-      const count = await manager.getRepository(Inscripcion).count({ where: { cursoId, aprobada: true }});
-      const capacidad = curso.cupoMaximo ?? 0;
-      if (capacidad > 0 && count >= capacidad) {
-        throw new ConflictException('Cupo del curso completo');
+      if (!curso) {
+        throw new NotFoundException(
+          `El curso con id ${cursoId} no fue encontrado`,
+        );
       }
 
-      const existe = await manager.getRepository(Inscripcion).findOne({ where: { cursoId, estudianteId }});
-      if (existe) return existe;
+      const estudiante = await manager
+        .getRepository(Usuario)
+        .findOne({ where: { id: estudianteId } });
 
-      const m = manager.getRepository(Inscripcion).create({
+      if (!estudiante) {
+        throw new NotFoundException(
+          `El estudiante con id ${estudianteId} no fue encontrado`,
+        );
+      }
+
+      const inscripcionExistente = await manager
+        .getRepository(Inscripcion)
+        .findOne({ where: { cursoId, estudianteId } });
+
+      if (inscripcionExistente) {
+        throw new ConflictException(
+          'El estudiante ya está inscrito en este curso',
+        );
+      }
+
+      // Revisar cupo máximo
+      const inscripcionesActuales = await manager.getRepository(Inscripcion).count({
+        where: { cursoId, aprobada: true },
+      });
+
+      if (curso.cupoMaximo && inscripcionesActuales >= curso.cupoMaximo) {
+        throw new ConflictException(
+          `El cupo máximo del curso (${curso.cupoMaximo}) ha sido alcanzado`,
+        );
+      }
+
+      const inscripcion = manager.getRepository(Inscripcion).create({
         cursoId,
         estudianteId,
         aprobada: false,
+        estado: 'PENDIENTE',
       });
-      return manager.getRepository(Inscripcion).save(m);
+      return manager.getRepository(Inscripcion).save(inscripcion);
     });
   }
 
-  listarPorCurso(cursoId: number) { return this.repo.find({ where: { cursoId } }); }
-  aprobar(id: number) { return this.repo.update(id, { aprobada: true }); }
+  async listar(query: QueryInscripcionesDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const offset = (page - 1) * limit;
+
+    const qb = this.repo.createQueryBuilder('inscripcion');
+
+    if (query.cursoId) {
+      qb.andWhere('inscripcion.cursoId = :cursoId', { cursoId: query.cursoId });
+    }
+    if (query.estudianteId) {
+      qb.andWhere('inscripcion.estudianteId = :estudianteId', {
+        estudianteId: query.estudianteId,
+      });
+    }
+    if (typeof query.aprobada === 'boolean') {
+      qb.andWhere('inscripcion.aprobada = :aprobada', {
+        aprobada: query.aprobada,
+      });
+    }
+    if (query.estado) {
+      qb.andWhere('inscripcion.estado = :estado', { estado: query.estado });
+    }
+
+    qb.leftJoinAndSelect('inscripcion.curso', 'curso');
+    qb.leftJoinAndSelect('inscripcion.estudiante', 'estudiante');
+    qb.orderBy('inscripcion.matriculadoEn', 'DESC');
+    qb.skip(offset).take(limit);
+
+    const [inscripciones, total] = await qb.getManyAndCount();
+
+    return {
+      data: inscripciones,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async buscarPorId(id: number) {
+    const inscripcion = await this.repo.findOne({
+      where: { id },
+      relations: ['curso', 'estudiante'],
+    });
+    if (!inscripcion) {
+      throw new NotFoundException(
+        `La inscripción con id ${id} no fue encontrada`,
+      );
+    }
+    return inscripcion;
+  }
+
+  async listarPorCurso(cursoId: number) {
+    const curso = await this.cursoRepo.findOne({ where: { id: cursoId } });
+    if (!curso) {
+      throw new NotFoundException(`El curso con id ${cursoId} no fue encontrado`);
+    }
+    return this.repo.find({
+      where: { cursoId },
+      relations: ['estudiante', 'curso'],
+    });
+  }
+
+  async actualizar(id: number, dto: UpdateInscripcionDto) {
+    const inscripcion = await this.repo.preload({
+      id,
+      ...dto,
+    });
+    if (!inscripcion) {
+      throw new NotFoundException(
+        `La inscripción con id ${id} no fue encontrada`,
+      );
+    }
+    return this.repo.save(inscripcion);
+  }
+
+  async aprobar(id: number) {
+    const inscripcion = await this.buscarPorId(id);
+    if (inscripcion.aprobada) {
+      throw new BadRequestException('La inscripción ya ha sido aprobada');
+    }
+    inscripcion.aprobada = true;
+    inscripcion.estado = 'APROBADA';
+    return this.repo.save(inscripcion);
+  }
+
+  async eliminar(id: number) {
+    const inscripcion = await this.buscarPorId(id);
+    await this.repo.remove(inscripcion);
+    return { message: `Inscripción con id ${id} eliminada correctamente` };
+  }
 }

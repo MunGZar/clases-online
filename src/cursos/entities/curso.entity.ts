@@ -1,7 +1,13 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn } from 'typeorm';
 import { Usuario } from '../../usuarios/entities/usuario.entity';
 import { Sesion } from '../../sesiones/entities/sesion.entity';
-import { Inscripcion} from '../../inscripciones/entities/inscripcion.entity';
+import { Inscripcion } from '../../inscripciones/entities/inscripcion.entity';
+
+export enum CursoEstado {
+  PENDIENTE = 'PENDIENTE',
+  ACTIVO = 'ACTIVO',
+  FINALIZADO = 'FINALIZADO',
+}
 
 @Entity('cursos')
 export class Curso {
@@ -25,6 +31,13 @@ export class Curso {
 
   @Column({ type: 'simple-array', nullable: true })
   etiquetas: string[];
+
+  @Column({
+    type: 'enum',
+    enum: CursoEstado,
+    default: CursoEstado.PENDIENTE,
+  })
+  estado: CursoEstado;
 
   @CreateDateColumn()
   creadoEn: Date;
