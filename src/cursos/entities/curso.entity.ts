@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn } from 'typeorm';
-import { Usuario } from '../../usuarios/usuario.entity/usuario.entity';
-import { Sesion } from '../../sesiones/sesion.entity/sesion.entity';
-import { Inscripcion} from '../../inscripciones/inscripcion.entity/inscripcion.entity';
+import { Usuario } from '../../usuarios/entities/usuario.entity';
+import { Sesion } from '../../sesiones/entities/sesion.entity';
+import { Inscripcion} from '../../inscripciones/entities/inscripcion.entity';
 
 @Entity('cursos')
 export class Curso {

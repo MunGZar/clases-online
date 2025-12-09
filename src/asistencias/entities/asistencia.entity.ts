@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Index } from 'typeorm';
-import { Sesion } from '../../sesiones/sesion.entity/sesion.entity';
-import { Inscripcion} from '../../inscripciones/inscripcion.entity/inscripcion.entity';
+import { Sesion } from '../../sesiones/entities/sesion.entity';
+import { Inscripcion} from '../../inscripciones/entities/inscripcion.entity';
 
 @Entity('asistencias')
 @Index(['sesionId','estudianteId'])

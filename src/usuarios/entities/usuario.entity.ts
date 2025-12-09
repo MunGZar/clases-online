@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from 'typeorm';
-import { Curso } from '../../cursos/curso.entity/curso.entity';
-import { Inscripcion} from '../../inscripciones/inscripcion.entity/inscripcion.entity';
+import { Curso } from '../../cursos/entities/curso.entity';
+import { Inscripcion} from '../../inscripciones/entities/inscripcion.entity';
 
 export type RolUsuario = 'estudiante' | 'profesor' | 'admin';
 

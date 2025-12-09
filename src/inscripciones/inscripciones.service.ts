@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Inscripcion} from './inscripcion.entity/inscripcion.entity';
+import { Inscripcion} from './entities/inscripcion.entity';
 import { Repository, DataSource } from 'typeorm';
-import { Curso } from '../cursos/curso.entity/curso.entity';
+import { Curso } from '../cursos/entities/curso.entity';
 
 @Injectable()
 export class InscripcionesService {

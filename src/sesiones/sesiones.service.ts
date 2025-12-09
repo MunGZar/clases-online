@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Sesion, EstadoSesion } from './sesion.entity/sesion.entity';
+import { Sesion, EstadoSesion } from './entities/sesion.entity';
 import { Repository, DataSource } from 'typeorm';
 import { CrearSesionDto } from './dto/create-sesion.dto';
 import { CursosService } from '../cursos/cursos.service';

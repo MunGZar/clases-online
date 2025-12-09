@@ -11,12 +11,12 @@ import { AsistenciasModule } from './asistencias/asistencias.module';
 import { ParticipacionesModule } from './participaciones/participaciones.module';
 
 // Entidades TypeORM
-import { Usuario } from './usuarios/usuario.entity/usuario.entity';
-import { Curso } from './cursos/curso.entity/curso.entity';
-import { Sesion } from './sesiones/sesion.entity/sesion.entity';
-import { Inscripcion } from './inscripciones/inscripcion.entity/inscripcion.entity';
-import { Asistencia } from './asistencias/asistencia.entity/asistencia.entity';
-import { Participacion } from './participaciones/participacion.entity/participacion.entity';
+import { Usuario } from './usuarios/entities/usuario.entity';
+import { Curso } from './cursos/entities/curso.entity';
+import { Sesion } from './sesiones/entities/sesion.entity';
+import { Inscripcion } from './inscripciones/entities/inscripcion.entity';
+import { Asistencia } from './asistencias/entities/asistencia.entity';
+import { Participacion } from './participaciones/entities/participacion.entity';
 
 @Module({
   imports: [
@@ -37,9 +37,9 @@ import { Participacion } from './participaciones/participacion.entity/participac
         Asistencia,
         Participacion,
       ],
-      synchronize: false,
-      migrations: ['dist/migrations/*.js'],
-      migrationsRun: true,
+      synchronize: true,
+      logging: true,
+  
     }),
 
     // Módulos de la aplicación

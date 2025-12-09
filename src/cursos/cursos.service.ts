@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Curso } from './curso.entity/curso.entity';
+import { Curso } from './entities/curso.entity';
 import { Repository } from 'typeorm';
 import { CrearCursoDto } from './dto/create-curso.dto';
 

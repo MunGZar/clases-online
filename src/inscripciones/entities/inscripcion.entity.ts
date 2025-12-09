@@ -1,8 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Unique, OneToMany } from 'typeorm';
-import { Curso } from '../../cursos/curso.entity/curso.entity';
-import { Usuario } from '../../usuarios/usuario.entity/usuario.entity';
-import { Asistencia } from '../../asistencias/asistencia.entity/asistencia.entity';
-import { Participacion } from '../../participaciones/participacion.entity/participacion.entity';
+import { Curso } from '../../cursos/entities/curso.entity';
+import { Usuario } from '../../usuarios/entities/usuario.entity';
+import { Asistencia } from '../../asistencias/entities/asistencia.entity';
+import { Participacion } from '../../participaciones/entities/participacion.entity';
 
 @Entity('inscripciones')
 @Unique(['cursoId','estudianteId'])

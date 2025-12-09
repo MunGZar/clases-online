@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, Index } from 'typeorm';
-import { Curso } from '../../cursos/curso.entity/curso.entity';
-import { Asistencia } from '../../asistencias/asistencia.entity/asistencia.entity';
-import { Participacion } from '../../participaciones/participacion.entity/participacion.entity';
+import { Curso } from '../../cursos/entities/curso.entity';
+import { Asistencia } from '../../asistencias/entities/asistencia.entity';
+import { Participacion } from '../../participaciones/entities/participacion.entity';
 
 export enum EstadoSesion {
   PROGRAMADA = 'programada',
