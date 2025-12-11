@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Sesion, EstadoSesion } from './entities/sesion.entity';
 import { Repository, DataSource } from 'typeorm';
 import { CrearSesionDto } from './dto/create-sesion.dto';
-import { QuerySesionesDto } from './dto/query-sesiones.dto';
+  import { QuerySesionesDto } from './dto/query-sesiones.dto';
 import { Curso } from '../cursos/entities/curso.entity';
 
 @Injectable()
@@ -139,7 +139,7 @@ export class SesionesService {
     }
 
     sesion.estado = EstadoSesion.FINALIZADA;
-    sesion.finAt = new Date(); // Opcional: ajustar la hora de fin a la real.
+    sesion.finAt = new Date(); 
     return this.repo.save(sesion);
   }
 }

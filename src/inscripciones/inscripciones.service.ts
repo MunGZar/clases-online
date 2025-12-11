@@ -13,6 +13,9 @@ import { CrearInscripcionDto } from './dto/crear-inscripcion.dto';
 import { UpdateInscripcionDto } from './dto/update-inscripcion.dto';
 import { QueryInscripcionesDto } from './dto/query-inscripciones.dto';
 
+// 👉 IMPORTANTE: importar Sesion correctamente
+import { Sesion } from '../sesiones/entities/sesion.entity';
+
 @Injectable()
 export class InscripcionesService {
   constructor(
@@ -170,5 +173,25 @@ export class InscripcionesService {
     const inscripcion = await this.buscarPorId(id);
     await this.repo.remove(inscripcion);
     return { message: `Inscripción con id ${id} eliminada correctamente` };
+  }
+
+  //  MÉTODO COMPLETO Y CORRECTO PARA EL AUDIT MIDDLEWARE
+  async verificarInscripcion(estudianteId: number, sessionId: number): Promise<boolean> {
+    // 1️⃣ Buscar la sesión real en tu sistema
+    const sesion = await this.dataSource.getRepository(Sesion).findOne({
+      where: { id: sessionId },
+      relations: ['curso'],
+    });
+
+    if (!sesion) return false;
+
+    const cursoId = sesion.cursoId;
+
+    //  Verificar si el usuario está inscrito correctamente y aprobado
+    const inscripcion = await this.repo.findOne({
+      where: { estudianteId, cursoId, aprobada: true },
+    });
+
+    return !!inscripcion;
   }
 }

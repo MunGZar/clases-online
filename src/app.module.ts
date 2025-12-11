@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // Módulos
+import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuario.module';
 import { CursosModule } from './cursos/cursos.module';
 import { SesionesModule } from './sesiones/sesiones.module';
@@ -17,6 +18,13 @@ import { Sesion } from './sesiones/entities/sesion.entity';
 import { Inscripcion } from './inscripciones/entities/inscripcion.entity';
 import { Asistencia } from './asistencias/entities/asistencia.entity';
 import { Participacion } from './participaciones/entities/participacion.entity';
+
+// Middlewares
+import { EducativoMiddleware } from './common/middleware/educativo.middleware';
+import { AuditMiddleware } from './common/middleware/audit.middleware';
+
+// AGREGADO: rate-limit
+import { RateLimitChatMiddleware } from './common/rate-limit/rate-limit.middleware';
 
 @Module({
   imports: [
@@ -41,6 +49,9 @@ import { Participacion } from './participaciones/entities/participacion.entity';
       logging: true,
     }),
 
+    //  AUTH DEBE IMPORTARSE ANTES QUE LOS DEMÁS MÓDULOS
+    AuthModule,
+
     // Módulos de la aplicación
     UsuariosModule,
     CursosModule,
@@ -50,4 +61,17 @@ import { Participacion } from './participaciones/entities/participacion.entity';
     ParticipacionesModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Middleware educativo
+    consumer.apply(EducativoMiddleware).forRoutes('*');
+
+    // Audit middleware: solo para sesiones
+    consumer.apply(AuditMiddleware).forRoutes('sessions/:id');
+
+    //  Rate limit SOLO para /sessions/:id/chat
+    consumer
+      .apply(RateLimitChatMiddleware)
+      .forRoutes('sessions/:id/chat');
+  }
+}
