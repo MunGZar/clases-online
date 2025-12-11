@@ -1,29 +1,57 @@
-import { IsInt, IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, IsOptional, IsEnum } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TipoParticipacion } from '../entities/participacion.entity';
 
 export class CrearParticipacionDto {
+  @ApiProperty({
+    description: 'ID de la sesión donde participa el estudiante',
+    example: 1,
+  })
   @IsInt()
   @IsNotEmpty()
-  idSesion: number; // ID de la sesión donde participa el estudiante
+  sesionId: number;
 
+  @ApiProperty({
+    description: 'ID del estudiante que participa',
+    example: 2,
+  })
   @IsInt()
   @IsNotEmpty()
-  idEstudiante: number; // ID del estudiante que participa
+  estudianteId: number;
 
-  @IsString()
-  @IsOptional()
-  tipoParticipacion?: string; // Ej: "pregunta", "respuesta", "intervención"
+  @ApiProperty({
+    description: 'Tipo de participación',
+    example: 'pregunta',
+    enum: TipoParticipacion,
+  })
+  @IsEnum(TipoParticipacion)
+  @IsNotEmpty()
+  tipo: TipoParticipacion;
 
+  @ApiProperty({
+    description: 'Contenido de la participación (mensaje, pregunta, etc.)',
+    example: '¿Cómo funciona el decorador @property?',
+  })
   @IsString()
-  @IsOptional()
-  comentario?: string; // Notas adicionales
+  @IsNotEmpty()
+  contenido: string;
 }
 
 export class ActualizarParticipacionDto {
-  @IsString()
+  @ApiPropertyOptional({
+    description: 'Tipo de participación',
+    example: 'pregunta',
+    enum: TipoParticipacion,
+  })
+  @IsEnum(TipoParticipacion)
   @IsOptional()
-  tipoParticipacion?: string;
+  tipo?: TipoParticipacion;
 
+  @ApiPropertyOptional({
+    description: 'Contenido de la participación',
+    example: 'Texto actualizado',
+  })
   @IsString()
   @IsOptional()
-  comentario?: string;
+  contenido?: string;
 }

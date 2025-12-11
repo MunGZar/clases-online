@@ -1,10 +1,14 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Sesion } from './entities/sesion.entity';
+import { Inscripcion } from '../inscripciones/entities/inscripcion.entity';
 import { SesionesService } from './sesiones.service';
 import { SesionesController } from './sesiones.controller';
+import { SessionGateway } from './session.gateway';
 import { CursosModule } from '../cursos/cursos.module';
 import { UsuariosModule } from '../usuarios/usuario.module';
+import { AsistenciasModule } from '../asistencias/asistencias.module';
+import { ParticipacionesModule } from '../participaciones/participaciones.module';
 import { Curso } from '../cursos/entities/curso.entity';
 
 //  IMPORTAR AUTHMODULE
@@ -15,12 +19,14 @@ import { RateLimitChatMiddleware } from '../common/rate-limit/rate-limit.middlew
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Sesion, Curso]),
+    TypeOrmModule.forFeature([Sesion, Curso, Inscripcion]),
     CursosModule,
     UsuariosModule,
+    AsistenciasModule,
+    ParticipacionesModule,
     AuthModule, // 👈 NECESARIO PARA JWT + ROLES + GUARDS
   ],
-  providers: [SesionesService],
+  providers: [SesionesService, SessionGateway],
   controllers: [SesionesController],
   exports: [SesionesService],
 })

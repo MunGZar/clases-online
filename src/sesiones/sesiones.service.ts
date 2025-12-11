@@ -3,13 +3,16 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Sesion, EstadoSesion } from './entities/sesion.entity';
 import { Repository, DataSource } from 'typeorm';
 import { CrearSesionDto } from './dto/create-sesion.dto';
-  import { QuerySesionesDto } from './dto/query-sesiones.dto';
+import { QuerySesionesDto } from './dto/query-sesiones.dto';
 import { Curso } from '../cursos/entities/curso.entity';
+import { SessionGateway } from './session.gateway';
 
 @Injectable()
 export class SesionesService {
@@ -17,7 +20,9 @@ export class SesionesService {
     @InjectRepository(Sesion) private repo: Repository<Sesion>,
     @InjectRepository(Curso) private cursoRepo: Repository<Curso>,
     private dataSource: DataSource,
-  ) {}
+    @Inject(forwardRef(() => SessionGateway))
+    private sessionGateway: SessionGateway,
+  ) { }
 
   async crear(dto: CrearSesionDto) {
     if (dto.finAt <= dto.inicioAt) {
@@ -113,7 +118,12 @@ export class SesionesService {
     }
 
     sesion.estado = EstadoSesion.EN_VIVO;
-    return this.repo.save(sesion);
+    const resultado = await this.repo.save(sesion);
+
+    // Emitir evento WebSocket de sesión iniciada
+    this.sessionGateway.emitSessionStarted(sesionId);
+
+    return resultado;
   }
 
   async finalizarSesion(sesionId: number, actorId: number) {
@@ -139,7 +149,12 @@ export class SesionesService {
     }
 
     sesion.estado = EstadoSesion.FINALIZADA;
-    sesion.finAt = new Date(); 
-    return this.repo.save(sesion);
+    sesion.finAt = new Date();
+    const resultado = await this.repo.save(sesion);
+
+    // Emitir evento WebSocket de sesión finalizada
+    this.sessionGateway.emitSessionEnded(sesionId);
+
+    return resultado;
   }
 }

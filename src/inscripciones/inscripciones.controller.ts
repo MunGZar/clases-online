@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { InscripcionesService } from './inscripciones.service';
 import { CrearInscripcionDto } from './dto/crear-inscripcion.dto';
 import { QueryInscripcionesDto } from './dto/query-inscripciones.dto';
@@ -20,10 +21,13 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 
+@ApiTags('Inscripciones')
+@ApiBearerAuth('JWT-auth')
+
 @Controller('inscripciones')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class InscripcionesController {
-  constructor(private svc: InscripcionesService) {}
+  constructor(private svc: InscripcionesService) { }
 
   // ESTUDIANTE crea inscripciones (se inscribe)
   @Post()

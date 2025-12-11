@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { UsuariosModule } from '../usuarios/usuario.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthController } from './auth.controller';
 
 @Module({
   imports: [
@@ -16,14 +17,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       inject: [ConfigService],
       useFactory: (cs: ConfigService) => ({
         secret: cs.get<string>('JWT_SECRET', 'changeme_development_secret'),
-        signOptions: { 
+        signOptions: {
           expiresIn: Number(cs.get<string>('JWT_EXPIRES_IN', '3600')), // ✔ 1 hora por defecto
         },
       }),
     }),
     UsuariosModule,
   ],
+  controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard],
-  exports: [AuthService, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, JwtAuthGuard, RolesGuard, JwtModule], // Exportar JwtModule para que otros módulos puedan usar JwtService
 })
-export class AuthModule {}
+export class AuthModule { }

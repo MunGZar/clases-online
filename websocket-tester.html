@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Tester - Clases Online</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        h1 {
+            color: #00d4ff;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section h2 {
+            margin-top: 0;
+            color: #e94560;
+        }
+
+        input,
+        button,
+        textarea,
+        select {
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+            margin: 5px 0;
+        }
+
+        input,
+        textarea,
+        select {
+            background: #0f3460;
+            color: #fff;
+            width: 100%;
+        }
+
+        button {
+            background: #e94560;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #ff6b6b;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .btn-green {
+            background: #00d4ff;
+        }
+
+        .btn-green:hover {
+            background: #00a8cc;
+        }
+
+        #log {
+            background: #0f0f23;
+            border-radius: 5px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .log-info {
+            background: #1a4a6e;
+        }
+
+        .log-success {
+            background: #1a6e3c;
+        }
+
+        .log-error {
+            background: #6e1a1a;
+        }
+
+        .log-event {
+            background: #4a1a6e;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .status.connected {
+            background: #1a6e3c;
+        }
+
+        .status.disconnected {
+            background: #6e1a1a;
+        }
+
+        .flex {
+            display: flex;
+            gap: 10px;
+        }
+
+        .flex>* {
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket Tester - Clases Online</h1>
+
+        <!-- Paso 1: Login -->
+        <div class="section">
+            <h2>Paso 1: Login (obtener token)</h2>
+            <div class="flex">
+                <input type="email" id="correo" placeholder="Correo" value="estudiante@test.com">
+                <input type="password" id="clave" placeholder="Clave" value="123456">
+            </div>
+            <button onclick="login()">🔑 Login</button>
+            <div id="tokenDisplay" style="margin-top:10px; word-break:break-all;"></div>
+        </div>
+
+        <!-- Paso 2: Conectar WebSocket -->
+        <div class="section">
+            <h2>Paso 2: Conectar WebSocket</h2>
+            <div id="status" class="status disconnected">⚪ Desconectado</div>
+            <button onclick="connect()" id="btnConnect" disabled>🔗 Conectar WebSocket</button>
+            <button onclick="disconnect()" id="btnDisconnect" disabled>❌ Desconectar</button>
+        </div>
+
+        <!-- Paso 3: Unirse a sesión -->
+        <div class="section">
+            <h2>Paso 3: Unirse a una sesión</h2>
+            <input type="number" id="sessionId" placeholder="ID de la sesión" value="1">
+            <button onclick="joinSession()" id="btnJoin" disabled>🚪 Unirse a Sesión</button>
+        </div>
+
+        <!-- Paso 4: Enviar mensajes -->
+        <div class="section">
+            <h2>Paso 4: Enviar mensajes / preguntas</h2>
+            <textarea id="message" placeholder="Escribe tu mensaje..." rows="2"></textarea>
+            <div class="flex">
+                <button onclick="sendMessage()" id="btnMessage" disabled>💬 Enviar Mensaje</button>
+                <button onclick="sendQuestion()" id="btnQuestion" disabled class="btn-green">❓ Hacer Pregunta</button>
+            </div>
+        </div>
+
+        <!-- Log de eventos -->
+        <div class="section">
+            <h2>📋 Log de Eventos</h2>
+            <div id="log"></div>
+            <button onclick="clearLog()" style="margin-top:10px;">🗑️ Limpiar Log</button>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let token = null;
+        let currentSessionId = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            if (connected) {
+                status.className = 'status connected';
+                status.textContent = '🟢 Conectado';
+                document.getElementById('btnJoin').disabled = false;
+                document.getElementById('btnMessage').disabled = false;
+                document.getElementById('btnQuestion').disabled = false;
+                document.getElementById('btnDisconnect').disabled = false;
+                document.getElementById('btnConnect').disabled = true;
+            } else {
+                status.className = 'status disconnected';
+                status.textContent = '🔴 Desconectado';
+                document.getElementById('btnJoin').disabled = true;
+                document.getElementById('btnMessage').disabled = true;
+                document.getElementById('btnQuestion').disabled = true;
+                document.getElementById('btnDisconnect').disabled = true;
+                document.getElementById('btnConnect').disabled = !token;
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('correo').value;
+            const password = document.getElementById('clave').value;
+
+            try {
+                log(`Intentando login con ${email}...`);
+                const response = await fetch('http://localhost:3000/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (data.accessToken) {
+                    token = data.accessToken;
+                    document.getElementById('tokenDisplay').innerHTML =
+                        `<strong>✅ Token obtenido!</strong><br><small>${token.substring(0, 50)}...</small>`;
+                    document.getElementById('btnConnect').disabled = false;
+                    log(`Login exitoso! Usuario: ${data.usuario.correo} (${data.usuario.rol})`, 'success');
+                } else {
+                    log(`Error de login: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                log(`Error de conexión: ${error.message}`, 'error');
+            }
+        }
+
+        function connect() {
+            if (!token) {
+                log('Primero debes hacer login', 'error');
+                return;
+            }
+
+            log('Conectando al WebSocket...');
+
+            socket = io('http://localhost:3000', {
+                auth: { token: token },
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                log('Conectado al servidor WebSocket!', 'success');
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`Desconectado: ${reason}`, 'error');
+                updateStatus(false);
+            });
+
+            socket.on('error', (err) => {
+                log(`Error: ${JSON.stringify(err)}`, 'error');
+            });
+
+            // Eventos de la aplicación
+            socket.on('joined_successfully', (data) => {
+                log(`Te uniste a la sesión ${data.sessionId}. Conectados: ${data.connectedCount}`, 'success');
+                currentSessionId = data.sessionId;
+            });
+
+            socket.on('user.joined_session', (data) => {
+                log(`Usuario ${data.userId} se unió. Conectados: ${data.connectedCount}`, 'event');
+            });
+
+            socket.on('user.left_session', (data) => {
+                log(`Usuario ${data.userId} salió. Conectados: ${data.connectedCount}`, 'event');
+            });
+
+            socket.on('chat.message_sent', (data) => {
+                log(`💬 Mensaje de ${data.userId}: ${data.message}`, 'event');
+            });
+
+            socket.on('question.asked', (data) => {
+                log(`❓ Pregunta de ${data.userId}: ${data.question}`, 'event');
+            });
+
+            socket.on('session.started', (data) => {
+                log(`🟢 Sesión ${data.sessionId} INICIADA!`, 'success');
+            });
+
+            socket.on('session.ended', (data) => {
+                log(`🔴 Sesión ${data.sessionId} FINALIZADA`, 'error');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('Desconectado manualmente');
+            }
+        }
+
+        function joinSession() {
+            const sessionId = parseInt(document.getElementById('sessionId').value);
+            if (!socket || !sessionId) return;
+
+            log(`Uniéndose a sesión ${sessionId}...`);
+            socket.emit('join_session', { sessionId });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('message').value;
+            const sessionId = parseInt(document.getElementById('sessionId').value);
+            if (!socket || !message) return;
+
+            socket.emit('send_message', { sessionId, message });
+            document.getElementById('message').value = '';
+            log(`Mensaje enviado: ${message}`);
+        }
+
+        function sendQuestion() {
+            const question = document.getElementById('message').value;
+            const sessionId = parseInt(document.getElementById('sessionId').value);
+            if (!socket || !question) return;
+
+            socket.emit('ask_question', { sessionId, question });
+            document.getElementById('message').value = '';
+            log(`Pregunta enviada: ${question}`);
+        }
+    </script>
+</body>
+
+</html>

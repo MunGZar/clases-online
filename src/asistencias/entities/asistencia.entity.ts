@@ -1,9 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, Index, JoinColumn } from 'typeorm';
 import { Sesion } from '../../sesiones/entities/sesion.entity';
-import { Inscripcion} from '../../inscripciones/entities/inscripcion.entity';
+import { Usuario } from '../../usuarios/entities/usuario.entity';
 
 @Entity('asistencias')
-@Index(['sesionId','estudianteId'])
+@Index(['sesionId', 'estudianteId'])
 export class Asistencia {
   @PrimaryGeneratedColumn('increment')
   id: number;
@@ -26,8 +26,9 @@ export class Asistencia {
   @Column()
   sesionId: number;
 
-  @ManyToOne(() => Inscripcion, (m) => m.asistencias, { onDelete: 'CASCADE' })
-  inscripciones: Inscripcion;
+  @ManyToOne(() => Usuario, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'estudianteId' })
+  estudiante: Usuario;
 
   @Column()
   estudianteId: number;

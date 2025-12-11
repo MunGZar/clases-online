@@ -23,7 +23,7 @@ export class InscripcionesService {
     @InjectRepository(Curso) private cursoRepo: Repository<Curso>,
     @InjectRepository(Usuario) private usuarioRepo: Repository<Usuario>,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   async crear(dto: CrearInscripcionDto) {
     const { cursoId, estudianteId } = dto;
@@ -32,7 +32,6 @@ export class InscripcionesService {
       const curso = await manager
         .getRepository(Curso)
         .createQueryBuilder('c')
-        .setLock('for_no_key_update')
         .where('c.id = :id', { id: cursoId })
         .getOne();
 
@@ -74,12 +73,17 @@ export class InscripcionesService {
       }
 
       const inscripcion = manager.getRepository(Inscripcion).create({
-        cursoId,
-        estudianteId,
+        curso,
+        estudiante,
         aprobada: false,
         estado: 'PENDIENTE',
       });
-      return manager.getRepository(Inscripcion).save(inscripcion);
+      try {
+        return await manager.getRepository(Inscripcion).save(inscripcion);
+      } catch (e) {
+        console.error('❌ ERROR AL GUARDAR INSCRIPCION:', e);
+        throw e;
+      }
     });
   }
 
